@@ -1,0 +1,56 @@
+#!/bin/sh
+
+echo "*************************************************************************"
+#Travis configuration lint check
+command -v travis >/dev/null 2>&1
+if test $? -eq 0; then
+	echo Checking Travis configuration
+	echo The warning:
+	echo [x] your repository must be feature flagged for the os setting to be used
+	echo is normal
+	travis lint
+else
+	echo Skipping Travis configuration check
+	echo To enable this check, install the Travis configuration parser
+      	echo More info: https://github.com/travis-ci/travis-yaml
+fi
+if test $? -ne 0; then exit $?; fi
+
+echo "*************************************************************************"
+#Whitespace check
+echo Checking for whitespace
+make check-whitespace
+if test $? -ne 0; then exit $?; fi
+
+echo "*************************************************************************"
+#Documentation check
+command -v virtualenv >/dev/null 2>&1
+if test $? -eq 0; then
+	echo Building HTML documentation
+	echo Warnings of the form:
+	echo     WARNING: duplicate object description of ...
+	echo     WARNING: jl:... reference target not found: ...
+	echo are normal
+
+	make -C doc html SPHINXOPTS="-n"
+	if test $? -ne 0; then exit $?; fi
+
+	command -v pdflatex >/dev/null 2>&1
+	if test $? -eq 0; then
+		echo Building PDF documentation
+		make -C doc latexpdf SPHINXOPTS="-n"
+		if test $? -ne 0; then exit $?; fi
+	else
+		echo Skipping build test for PDF documentation
+		echo Reason: pdflatex not found
+	fi
+else
+	echo Skipping build test for documentation
+	echo Reason: virtualenv (for Python) not found
+fi
+
+echo "*************************************************************************"
+echo Running Julia test suite
+make test
+if test $? -ne 0; then exit $?; fi
+

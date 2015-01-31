@@ -1,0 +1,7 @@
+#!/bin/sh
+
+echo "*************************************************************************"
+#Whitespace check
+echo Checking for whitespace
+make check-whitespace
+
