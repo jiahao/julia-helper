@@ -1,56 +1,118 @@
 #!/bin/sh
 
-echo "*************************************************************************"
+SCANBUILD=/usr/local/opt/llvm35/share/clang-3.5/tools/scan-build
+
+run_travislint=0
+run_whitespace=1 #Always run
+run_doc_tests=0
+run_clang_scan=0
+run_julia_tests=0
+
+while read local_ref local_sha remote_ref remote_sha
+do
+	#Get list of files that changed locally vs remotely
+	filelist=$(git diff --name-only $local_sha $remote_sha 2>/dev/null | sort | uniq)
+
+	for f in $filelist
+	do
+		case $f in
+			.travis.yml )
+				run_travislist=1
+				;;
+			doc/*.rst )
+				run_doc_tests=1
+				;;
+			[su]*/*.[ch]* )
+				run_clang_scan=1
+				;;
+			test/*/*.jl ) #Not part of the test suite
+				;;
+			[bet]*/*.jl )
+				run_julia_tests=1
+				;;
+			*)
+				;;
+		esac
+	done
+done
+
 #Travis configuration lint check
-command -v travis >/dev/null 2>&1
-if test $? -eq 0; then
-	echo Checking Travis configuration
-	echo The warning:
-	echo [x] your repository must be feature flagged for the os setting to be used
-	echo is normal
-	travis lint
-else
-	echo Skipping Travis configuration check
-	echo To enable this check, install the Travis configuration parser
-      	echo More info: https://github.com/travis-ci/travis-yaml
-fi
-if test $? -ne 0; then exit $?; fi
-
-echo "*************************************************************************"
-#Whitespace check
-echo Checking for whitespace
-make check-whitespace
-if test $? -ne 0; then exit $?; fi
-
-echo "*************************************************************************"
-#Documentation check
-command -v virtualenv >/dev/null 2>&1
-if test $? -eq 0; then
-	echo Building HTML documentation
-	echo Warnings of the form:
-	echo     WARNING: duplicate object description of ...
-	echo     WARNING: jl:... reference target not found: ...
-	echo are normal
-
-	make -C doc html SPHINXOPTS="-n"
-	if test $? -ne 0; then exit $?; fi
-
-	command -v pdflatex >/dev/null 2>&1
+if test $run_travislint -eq 1; then
+	echo "*************************************************************************"
+	command -v travis >/dev/null 2>&1
 	if test $? -eq 0; then
-		echo Building PDF documentation
-		make -C doc latexpdf SPHINXOPTS="-n"
-		if test $? -ne 0; then exit $?; fi
+		echo Checking Travis configuration
+		echo The warning:
+		echo [x] your repository must be feature flagged for the os setting to be used
+		echo is normal
+		travis lint
 	else
-		echo Skipping build test for PDF documentation
-		echo Reason: pdflatex not found
+		echo Skipping Travis configuration check
+		echo To enable this check, install the Travis configuration parser
+	      	echo More info: https://github.com/travis-ci/travis-yaml
 	fi
-else
-	echo Skipping build test for documentation
-	echo Reason: virtualenv (for Python) not found
+	if test $? -ne 0; then exit $?; fi
 fi
 
-echo "*************************************************************************"
-echo Running Julia test suite
-make test
-if test $? -ne 0; then exit $?; fi
+#Whitespace check
+if test $run_whitespace -eq 1; then
+	echo "*************************************************************************"
+	echo Checking for whitespace
+	make check-whitespace
+	if test $? -ne 0; then exit $?; fi
+fi
 
+#Documentation check
+if test $run_doc_tests -eq 1; then
+	echo "*************************************************************************"
+	command -v virtualenv >/dev/null 2>&1
+	if test $? -eq 0; then
+		echo Building HTML documentation
+		echo Warnings of the form:
+		echo     WARNING: duplicate object description of ...
+		echo     WARNING: jl:... reference target not found: ...
+		echo are normal
+
+		make -C doc html SPHINXOPTS="-n"
+		if test $? -ne 0; then exit $?; fi
+
+		command -v pdflatex >/dev/null 2>&1
+		if test $? -eq 0; then
+			echo Building PDF documentation
+			make -C doc latexpdf SPHINXOPTS="-n"
+			if test $? -ne 0; then exit $?; fi
+		else
+			echo Skipping build test for PDF documentation
+			echo Reason: pdflatex not found
+		fi
+	else
+		echo Skipping build test for documentation
+		echo Reason: virtualenv for python not found
+	fi
+fi
+
+#clang static analyzer check
+if test $run_clang_scan -eq 1; then
+	echo "*************************************************************************"
+	command -v $SCANBUILD >/dev/null 2>&1
+	if test $? -eq 0; then
+		echo Running clang static analyzer
+		make -C src clean
+		make -C src/flisp clean
+		$SCANBUILD make
+	else
+		echo Skipping static analysis of C/C++ code
+		echo Reason: clang static analyzer scan-build not found at
+		echo SCANBUILD=$SCANBUILD
+	fi
+fi
+
+#Julia test suite
+if test $run_julia_tests -eq 1; then
+	echo "*************************************************************************"
+	echo Running Julia test suite
+	make test
+	if test $? -ne 0; then exit $?; fi
+fi
+
+exit 1
