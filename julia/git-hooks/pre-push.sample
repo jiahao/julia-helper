@@ -17,7 +17,7 @@ do
 	do
 		case $f in
 			.travis.yml )
-				run_travislist=1
+				run_travislint=1
 				;;
 			doc/*.rst )
 				run_doc_tests=1
