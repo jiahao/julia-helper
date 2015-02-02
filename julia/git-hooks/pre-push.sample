@@ -51,7 +51,7 @@ if test $run_travislint -eq 1; then
 		echo To enable this check, install the Travis configuration parser
 	      	echo More info: https://github.com/travis-ci/travis-yaml
 	fi
-	if test $? -ne 0; then exit $?; fi
+	if test $? -ne 0; then exit 1; fi
 fi
 
 #Whitespace check
@@ -59,7 +59,7 @@ if test $run_whitespace -eq 1; then
 	echo "*************************************************************************"
 	echo Checking for whitespace
 	make check-whitespace
-	if test $? -ne 0; then exit $?; fi
+	if test $? -ne 0; then exit 1; fi
 fi
 
 #Documentation check
@@ -74,13 +74,13 @@ if test $run_doc_tests -eq 1; then
 		echo are normal
 
 		make -C doc html SPHINXOPTS="-n"
-		if test $? -ne 0; then exit $?; fi
+		if test $? -ne 0; then exit 1; fi
 
 		command -v pdflatex >/dev/null 2>&1
 		if test $? -eq 0; then
 			echo Building PDF documentation
 			make -C doc latexpdf SPHINXOPTS="-n"
-			if test $? -ne 0; then exit $?; fi
+			if test $? -ne 0; then exit 1; fi
 		else
 			echo Skipping build test for PDF documentation
 			echo Reason: pdflatex not found
@@ -112,7 +112,6 @@ if test $run_julia_tests -eq 1; then
 	echo "*************************************************************************"
 	echo Running Julia test suite
 	make test
-	if test $? -ne 0; then exit $?; fi
+	if test $? -ne 0; then exit 1; fi
 fi
 
-exit 1
