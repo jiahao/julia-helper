@@ -25,6 +25,9 @@ do
 			[su]*/*.[ch]* )
 				run_clang_scan=1
 				;;
+			test/[lt]*/*.jl )
+				run_julia_tests=1
+				;;
 			test/*/*.jl ) #Not part of the test suite
 				;;
 			[bet]*/*.jl )
